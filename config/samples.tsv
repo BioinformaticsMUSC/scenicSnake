@@ -1,0 +1,6 @@
+# Sample configuration file for SCENIC workflow
+# Modify this file to match your data
+sample_id	file_path	condition
+sample1	data/sample1.h5ad	control
+sample2	data/sample2.h5ad	treatment
+sample3	data/sample3.h5ad	control
