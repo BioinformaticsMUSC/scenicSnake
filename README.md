@@ -18,29 +18,24 @@ This workflow implements the complete SCENIC pipeline using Snakemake, including
 
 ## Workflow Steps
 
-1. **Data Loading & Filtering** (`01_load_and_filter.py`)
-   - Load single-cell expression data
-   - Filter low-quality cells and genes
-   - Calculate QC metrics
-
-2. **Expression Matrix Preparation** (`03_prepare_expression_matrix.py`)
+1. **Expression Matrix Preparation** (`03_prepare_expression_matrix.py`)
    - Normalize expression data
    - Log-transform values
    - Format for SCENIC input
 
-3. **Gene Regulatory Network Inference** (`04_genie3_inference.py`)
+2. **Gene Regulatory Network Inference** (`04_genie3_inference.py`)
    - Run GENIE3 algorithm
    - Generate gene-gene adjacency matrix
 
-4. **Regulon Creation** (`05_create_regulons.py`)
+3. **Regulon Creation** (`05_create_regulons.py`)
    - Use cisTarget for motif enrichment
    - Create transcription factor regulons
 
-5. **Activity Scoring** (`06_calculate_auc.py`)
+4. **Activity Scoring** (`06_calculate_auc.py`)
    - Calculate AUC scores for each regulon
    - Generate binary activity matrix
 
-6. **Visualization & Analysis**
+5. **Visualization & Analysis**
    - Regulon activity heatmaps
    - UMAP plots colored by regulon activity
    - Regulon Specificity Score (RSS) analysis
