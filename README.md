@@ -1,10 +1,10 @@
 # SCENIC Snakemake Workflow
 
-A comprehensive Snakemake workflow for running SCENIC (Single-Cell rEgulatory Network Inference and Clustering) analysis on single-cell RNA-seq data.
+A comprehensive Snakemake workflow for running SCENIC analysis on single-cell RNA-seq data.
 
 ## Overview
 
-SCENIC is a computational method to infer gene regulatory networks (GRNs) from single-cell RNA-seq data and to identify cell states. This workflow implements the complete SCENIC pipeline using Snakemake for reproducible and scalable analysis.
+This workflow implements the complete SCENIC pipeline using Snakemake, including downstream analysis.
 
 ## Features
 
@@ -68,22 +68,11 @@ conda activate scenic
 Edit the configuration files:
 
 - `config/config.yaml`: Main workflow parameters
-- `config/samples.tsv`: Sample information and file paths
 
 ### 4. Prepare Your Data
 
-Ensure your single-cell data is in one of these formats:
-- AnnData (.h5ad)
-- CSV/TSV files
-- 10X Genomics format
+Create an AnnData object (.h5ad) of the preprocessed data. 
 
-Update `config/samples.tsv` with your file paths:
-
-```tsv
-sample_id	file_path	condition
-sample1	data/sample1.h5ad	control
-sample2	data/sample2.h5ad	treatment
-```
 
 ### 5. Run the Workflow
 
@@ -101,33 +90,12 @@ snakemake results/scenic/regulons.json --cores 4 --use-conda
 ## Configuration
 
 ### Main Parameters (`config/config.yaml`)
-
-```yaml
-# Data filtering
-filtering:
-  min_genes_per_cell: 200
-  min_cells_per_gene: 3
-  max_genes_per_cell: 5000
-  max_mitochondrial_percent: 20
-
-# SCENIC parameters
-scenic:
-  species: "homo_sapiens"
-  n_jobs: 4
-  min_genes_per_regulon: 10
-  auc_threshold: 0.05
-```
-
-### Species Support
-
-Currently supported species:
-- `homo_sapiens` (Human)
-- `mus_musculus` (Mouse)
-- `drosophila_melanogaster` (Fly)
+Make sure the config.yaml file is updated prior to running.
 
 ## Output Files
 
 ### Core Results
+Files will be saved for each split condition if applicable. 
 - `results/scenic/adjacencies.tsv`: Gene-gene adjacency matrix
 - `results/scenic/regulons.json`: Discovered regulons
 - `results/scenic/auc_matrix.csv`: Regulon activity scores
@@ -141,45 +109,15 @@ Currently supported species:
 ### Reports
 - `results/reports/scenic_report.html`: Comprehensive analysis report
 
-## Resource Requirements
-
-### Computational Requirements
-- **CPU**: 4-16 cores recommended
-- **Memory**: 16-64 GB RAM (depends on dataset size)
-- **Storage**: 10-100 GB (depends on dataset size)
-
-### Time Estimates
-- Small dataset (1K cells): 1-2 hours
-- Medium dataset (10K cells): 4-8 hours
-- Large dataset (100K cells): 12-24 hours
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Memory errors during GENIE3**
-   - Reduce the number of genes by increasing filtering thresholds
-   - Increase memory allocation in cluster configuration
-
-2. **Long runtime**
-   - Increase the number of cores (`scenic.n_jobs`)
-   - Consider using a smaller gene set for initial testing
-
-3. **Empty regulons**
-   - Check species parameter matches your data
-   - Verify motif collection is appropriate
-   - Lower `min_genes_per_regulon` threshold
-
 ### Performance Optimization
 
 1. **Use cluster execution**:
 ```bash
-snakemake --cluster "sbatch --time={resources.time} --mem={resources.mem}" --cores 100
+snakemake --cluster "sbatch --time={resources.time} --mem={resources.mem}" --cores 32
 ```
 
 2. **Adjust resource allocation** in `config/config.yaml`
 
-3. **Use solid-state storage** for better I/O performance
 
 ## Citation
 
@@ -192,17 +130,3 @@ If you use this workflow, please cite:
 ## License
 
 This workflow is released under the MIT License.
-
-## Support
-
-For questions and issues:
-1. Check the [troubleshooting section](#troubleshooting)
-2. Open an issue on GitHub
-3. Consult the SCENIC documentation: https://pyscenic.readthedocs.io/
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request with detailed description
