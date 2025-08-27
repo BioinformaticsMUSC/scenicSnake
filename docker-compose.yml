@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  scenic:
+    build: .
+    image: scenic-snakemake:latest
+    container_name: scenic-workflow
+    volumes:
+      # Mount your data directory
+      - ./data:/data
+      # Mount results directory
+      - ./results:/opt/scenic/results
+      # Mount config directory (read-only)
+      - ./config:/opt/scenic/config:ro
+      # Mount logs directory
+      - ./logs:/opt/scenic/logs
+    working_dir: /opt/scenic
+    environment:
+      - SNAKEMAKE_CORES=8
+      - SNAKEMAKE_USE_CONDA=true
+    # Override default command
+    command: ["conda", "run", "-n", "scenic", "bash"]
+    # Keep container running for interactive use
+    tty: true
+    stdin_open: true
+    
+  # Optional: Jupyter notebook service for interactive analysis
+  jupyter:
+    build: .
+    image: scenic-snakemake:latest
+    container_name: scenic-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./data:/data
+      - ./results:/opt/scenic/results
+      - ./notebooks:/opt/scenic/notebooks
+    working_dir: /opt/scenic
+    command: >
+      conda run -n scenic jupyter lab 
+      --ip=0.0.0.0 
+      --port=8888 
+      --no-browser 
+      --allow-root 
+      --NotebookApp.token=''
+    profiles:
+      - jupyter

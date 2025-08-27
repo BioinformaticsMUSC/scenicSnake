@@ -15,6 +15,7 @@ def main():
     auc_file = snakemake.input.auc_matrix
     metadata_file = snakemake.input.metadata
     output_file = snakemake.output[0]
+    cell_type_column = snakemake.params.cell_type_column
     
     selected_regulons = snakemake.params.selected_regulons
     
@@ -27,7 +28,7 @@ def main():
     # Load metadata with UMAP coordinates
     print(f"Loading metadata from {metadata_file}")
     adata = sc.read_h5ad(metadata_file)
-    split_column = snakemake.params.split_column
+    split_column = snakemake.config['loom_preparation']['split_condition']
     adata = adata[adata.obs[split_column] == snakemake.params.split_value].copy()
     
     # Compute UMAP if not present
@@ -38,8 +39,8 @@ def main():
         sc.tl.umap(adata)
     
     # Ensure cell order matches
-    common_cells = list(set(auc_df.columns) & set(adata.obs_names))
-    auc_df = auc_df[common_cells]
+    common_cells = list(set(auc_df.index) & set(adata.obs_names))
+    auc_df = auc_df.loc[common_cells, :]
     adata = adata[common_cells]
     
     print(f"Plotting data for {len(common_cells)} cells")
@@ -50,17 +51,17 @@ def main():
     # Select regulons to plot
     if selected_regulons and len(selected_regulons) > 0:
         # Use user-specified regulons
-        available_regulons = [r for r in selected_regulons if r in auc_df.index]
+        available_regulons = [r for r in selected_regulons if r in auc_df.columns]
         if len(available_regulons) == 0:
             print("Warning: None of the selected regulons found in data")
             # Fall back to top variable regulons
-            regulon_variance = auc_df.var(axis=1).sort_values(ascending=False)
+            regulon_variance = auc_df.var(axis=0).sort_values(ascending=False)
             plot_regulons = regulon_variance.head(6).index.tolist()
         else:
             plot_regulons = available_regulons[:6]  # Limit to 6 for visualization
     else:
         # Auto-select most variable regulons
-        regulon_variance = auc_df.var(axis=1).sort_values(ascending=False)
+        regulon_variance = auc_df.var(axis=0).sort_values(ascending=False)
         plot_regulons = regulon_variance.head(6).index.tolist()
     
     print(f"Plotting {len(plot_regulons)} regulons: {plot_regulons}")
@@ -70,8 +71,8 @@ def main():
         # Overview plot: cell types (if available)
         fig, ax = plt.subplots(1, 1, figsize=(8, 6))
         
-        if 'cell_type' in adata.obs.columns:
-            cell_types = adata.obs['cell_type'].astype('category')
+        if cell_type_column in adata.obs.columns:
+            cell_types = adata.obs[cell_type_column].astype('category')
             scatter = ax.scatter(
                 umap_coords[:, 0], 
                 umap_coords[:, 1],
@@ -113,7 +114,7 @@ def main():
             ax = axes[row, col]
             
             # Get regulon activity scores
-            activity_scores = auc_df.loc[regulon, common_cells]
+            activity_scores = auc_df.loc[common_cells, regulon]
             
             # Create scatter plot
             scatter = ax.scatter(
@@ -148,8 +149,8 @@ def main():
         axes = axes.flatten()
         
         for i, regulon in enumerate(plot_regulons[:6]):
-            activity_scores = auc_df.loc[regulon, common_cells]
-            
+            activity_scores = auc_df.loc[common_cells, regulon]
+
             axes[i].hist(activity_scores, bins=50, alpha=0.7, edgecolor='black')
             axes[i].set_xlabel('AUC Score')
             axes[i].set_ylabel('Number of Cells')

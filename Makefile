@@ -1,7 +1,7 @@
 # Makefile for SCENIC Snakemake Workflow
 # Provides convenient shortcuts for common tasks
 
-.PHONY: help setup test clean dry-run run report
+.PHONY: help setup test clean dry-run run report docker-build docker-run docker-shell
 
 # Default target
 help:
@@ -9,13 +9,19 @@ help:
 	@echo "========================"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  setup     - Create conda environment and setup workflow"
-	@echo "  test      - Test workflow configuration and setup"
-	@echo "  dry-run   - Perform a dry run to check workflow"
-	@echo "  run       - Run the complete SCENIC workflow"
-	@echo "  report    - Generate Snakemake HTML report"
-	@echo "  clean     - Clean intermediate files"
-	@echo "  clean-all - Remove all output files"
+	@echo "  setup       - Create conda environment and setup workflow"
+	@echo "  test        - Test workflow configuration and setup"
+	@echo "  dry-run     - Perform a dry run to check workflow"
+	@echo "  run         - Run the complete SCENIC workflow"
+	@echo "  report      - Generate Snakemake HTML report"
+	@echo "  clean       - Clean intermediate files"
+	@echo "  clean-all   - Remove all output files"
+	@echo ""
+	@echo "Docker targets:"
+	@echo "  docker-build - Build Docker image"
+	@echo "  docker-run   - Run workflow in Docker"
+	@echo "  docker-shell - Start interactive Docker shell"
+	@echo "  docker-test  - Test workflow in Docker"
 	@echo ""
 
 # Setup conda environment
@@ -78,3 +84,25 @@ quickstart: setup create-data-dirs
 	@echo "3. Run 'make test' to verify setup"
 	@echo "4. Run 'make dry-run' to check workflow"
 	@echo "5. Run 'make run' to execute the workflow"
+
+# Docker targets
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t scenic-snakemake:latest .
+
+docker-run: docker-build
+	@echo "Running SCENIC workflow in Docker..."
+	./docker-run.sh run
+
+docker-shell: docker-build
+	@echo "Starting interactive Docker shell..."
+	./docker-run.sh shell
+
+docker-test: docker-build
+	@echo "Testing workflow in Docker..."
+	./docker-run.sh test
+
+docker-clean:
+	@echo "Cleaning Docker resources..."
+	docker system prune -f
+	docker image rm scenic-snakemake:latest || true

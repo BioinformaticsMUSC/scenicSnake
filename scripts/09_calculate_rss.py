@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import scanpy as sc
 from matplotlib.backends.backend_pdf import PdfPages
+from pyscenic.rss import regulon_specificity_scores
+from scipy.stats import zscore
 
 def main():
     # Get parameters from snakemake
@@ -28,12 +30,12 @@ def main():
     # Load metadata
     print(f"Loading metadata from {metadata_file}")
     adata = sc.read_h5ad(metadata_file)
-    split_column = snakemake.params.split_column
+    split_column = snakemake.config['loom_preparation']['split_condition']
     adata = adata[adata.obs[split_column] == snakemake.params.split_value].copy()
 
     # Ensure cell order matches
-    common_cells = list(set(auc_df.columns) & set(adata.obs_names))
-    auc_df = auc_df[common_cells]
+    common_cells = list(set(auc_df.index) & set(adata.obs_names))
+    auc_df = auc_df.loc[common_cells, :]
     adata = adata[common_cells]
     
     # Check if cell type column exists
@@ -73,13 +75,14 @@ def main():
             print(f"Created {n_clusters} dummy clusters")
     
     # Get cell type information
+    print(cell_type_column)
     cell_types = adata.obs[cell_type_column].astype(str)
     unique_cell_types = cell_types.unique()
     
     print(f"Found {len(unique_cell_types)} cell types: {unique_cell_types}")
     
     # Calculate RSS scores
-    rss_scores = calculate_rss(auc_df, cell_types)
+    rss_scores = regulon_specificity_scores(auc_df, cell_types)
     
     # Save RSS scores
     rss_scores.to_csv(rss_file)
@@ -89,7 +92,7 @@ def main():
     create_rss_plots(rss_scores, cell_types, plot_file)
     print(f"RSS plots saved to {plot_file}")
 
-def calculate_rss(auc_df, cell_types):
+def calculate_rss_alternative(auc_df, cell_types):
     """
     Calculate Regulon Specificity Score (RSS)
     RSS measures how specific a regulon is to each cell type
@@ -108,8 +111,8 @@ def calculate_rss(auc_df, cell_types):
             continue
         
         # Calculate mean AUC for this cell type vs others
-        type_mean = auc_df[type_cells].mean(axis=1)
-        other_mean = auc_df[other_cells].mean(axis=1) if len(other_cells) > 0 else pd.Series(0, index=auc_df.index)
+        type_mean = auc_df.loc[type_cells,:].mean(axis=0)
+        other_mean = auc_df.loc[other_cells,:].mean(axis=0) if len(other_cells) > 0 else pd.Series(0, index=auc_df.columns)
         
         # RSS = log2(fold change) with pseudocount
         pseudocount = 0.001
@@ -122,6 +125,31 @@ def calculate_rss(auc_df, cell_types):
     rss_df = rss_df.fillna(0)
     
     return rss_df
+
+def overall_auc_heatmap(auc_df, plot_file, top_n=15):
+    """Create overall AUC heatmap"""
+
+    #zscore the auc_df for each regulon
+    auc_mean = auc_df.mean(axis=0)
+    auc_mean_z = (auc_mean - auc_mean.mean()) / auc_mean.std()
+    top_auc = auc_mean_z.sort_values(ascending=False).head(top_n)
+    fig, ax = plt.subplots(1, len(unique_conditions), figsize=(12, 8))
+    for i, cond in enumerate(unique_conditions):
+        sns.heatmap(
+            top_auc,
+            ax=ax[i],
+            annot=True,
+            cmap='Reds',
+            center=0,
+            cbar_kws={'label': 'AUC Score, z-scored'},
+            yticklabels=True,
+            xticklabels=True
+        )
+        ax.set_title(f'Overall Mean AUC scores - {cond}')
+    ax.set_ylabel('Regulons')
+    plt.tight_layout()
+    plt.savefig(plot_file)
+    plt.close()
 
 def create_rss_plots(rss_scores, cell_types, plot_file):
     """Create RSS visualization plots"""

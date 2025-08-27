@@ -3,11 +3,15 @@
 Generate comprehensive HTML report for SCENIC analysis
 """
 
+import re
 import pandas as pd
 import numpy as np
 import json
 import os
 from datetime import datetime
+import plotly.graph_objects as go
+import plotly
+import scanpy as sc
 
 def main():
     # Get parameters from snakemake
@@ -16,39 +20,69 @@ def main():
     rss_file = snakemake.input.rss_scores
     plot_files = snakemake.input.plots
     output_file = snakemake.output[0]
-    
+    metadata_file = snakemake.input.metadata
+
+    cell_type_column = snakemake.params.cell_type_column
+
     print("Generating SCENIC analysis report...")
     
     # Load data
     auc_df = pd.read_csv(auc_file, index_col=0)
     
-    with open(regulons_file, 'r') as f:
-        regulons = json.load(f)
+    regulons = get_regs(regulon_csv_file=regulons_file)
     
     rss_df = pd.read_csv(rss_file, index_col=0)
+
+    adata = sc.read_h5ad(metadata_file)
+    # split_column = snakemake.config['loom_preparation']['split_condition']
+    # adata = adata[adata.obs[split_column] == snakemake.params.split_value].copy()
+    
+    # Ensure cell order matches
+    common_cells = list(set(auc_df.index) & set(adata.obs_names))
+    auc_df = auc_df.loc[common_cells, :]
+    adata = adata[common_cells]
+    auc_df_ct = pd.concat([auc_df, adata.obs[cell_type_column]], axis=1)
     
     # Generate HTML report
-    html_content = generate_html_report(auc_df, regulons, rss_df, plot_files)
-    
+    html_content = generate_html_report(auc_df, auc_df_ct, regulons, rss_df, plot_files, cell_type_column)
+
     # Save report
     with open(output_file, 'w') as f:
         f.write(html_content)
     
     print(f"Report saved to {output_file}")
 
-def generate_html_report(auc_df, regulons, rss_df, plot_files):
+def get_regs(regulon_csv_file):
+    """convert regulon csv file to regulon dict/json format"""
+    df = pd.read_csv(regulon_csv_file,
+    index_col=0, 
+	skiprows=2, 
+	names=['MotifID', 'AUC', 'NES','MotifSimilarityQvalue','OrthologousIdentity','Annotation', 'Context', 'TargetGenes', 'RankAtMax'], 
+	header=0)
+    reg_json_data = {
+        f"{row.name}(+)": [gene for gene, _ in parse_TargetGenes(row['TargetGenes'])]
+        for _, row in df.iterrows()
+    }
+    return reg_json_data
+
+def parse_TargetGenes(x):
+	reg_patt = r"\('(\w*)',\s(?:np.float64\()?(\d*.\d*)(?:\))?\)"
+	genes = re.findall(reg_patt, x)
+	return genes
+
+def generate_html_report(auc_df, auc_df_ct, regulons, rss_df, plot_files, cell_type_column):
     """Generate HTML report content"""
     
     # Calculate summary statistics
     n_regulons = len(regulons)
-    n_cells = auc_df.shape[1]
-    mean_targets_per_regulon = np.mean([reg['n_targets'] for reg in regulons.values()])
+    n_cells = auc_df.shape[0]
+    mean_targets_per_regulon = np.mean([len(genes) for genes in regulons.values()])
     
     # Find top regulons by activity and specificity
-    mean_activity = auc_df.mean(axis=1).sort_values(ascending=False)
+    mean_activity = auc_df.mean(axis=0).sort_values(ascending=False)
     top_active_regulons = mean_activity.head(10)
     
-    max_rss = rss_df.max(axis=1).sort_values(ascending=False)
+    max_rss = rss_df.max(axis=0).sort_values(ascending=False)
     top_specific_regulons = max_rss.head(10)
     
     html = f"""
@@ -207,7 +241,7 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
                 <div class="stat-label">Mean Targets per Regulon</div>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{len(rss_df.columns)}</div>
+                <div class="stat-number">{len(rss_df.index)}</div>
                 <div class="stat-label">Cell Types</div>
             </div>
         </div>
@@ -236,13 +270,13 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
     
     # Add top active regulons
     for i, (regulon, score) in enumerate(top_active_regulons.items(), 1):
-        n_targets = regulons.get(regulon, {}).get('n_targets', 'N/A')
+        target_genes = ", ".join(regulons.get(regulon, {}))
         html += f"""
                 <tr>
                     <td>{i}</td>
                     <td><strong>{regulon}</strong></td>
                     <td>{score:.3f}</td>
-                    <td>{n_targets}</td>
+                    <td>{target_genes}</td>
                 </tr>
 """
     
@@ -268,8 +302,8 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
     
     # Add top specific regulons
     for i, (regulon, score) in enumerate(top_specific_regulons.items(), 1):
-        if regulon in rss_df.index:
-            most_specific_cell_type = rss_df.loc[regulon].idxmax()
+        if regulon in rss_df.T.index:
+            most_specific_cell_type = rss_df.T.loc[regulon].idxmax()
         else:
             most_specific_cell_type = 'N/A'
         
@@ -281,10 +315,42 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
                     <td>{most_specific_cell_type}</td>
                 </tr>
 """
-    
     html += f"""
             </tbody>
         </table>
+    </div>
+"""
+    html += f"""
+    <div class="section">
+        <h2>🎯 Top Regulons Specific to each Cell type</h2>
+"""
+    for celltype in rss_df.index:
+        top10_regs = rss_df.loc[celltype].nlargest(10)
+        html += f"""
+        <h4>{celltype}:</h4>
+        <table>
+            <thead>
+                <tr>
+                <th>Rank</th>
+                <th>Regulon</th>
+                <th>RSS Score</th>
+                </tr>
+            </thead>
+            <tbody>
+"""
+        for i, (regulon, score) in enumerate(top10_regs.items(), 1):
+            html += f"""
+                <tr>
+                    <td>{i}</td>
+                    <td><strong>{regulon}</strong></td>
+                    <td>{score:.2f}</td>
+                </tr>
+            """
+        html += """
+                </tbody>
+                </table>
+"""
+    html += f"""
     </div>
     
     <div class="section">
@@ -298,7 +364,30 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
         'umap_regulon_activity.pdf': 'UMAP with Regulon Activity',
         'rss_plot.pdf': 'Regulon Specificity Scores'
     }
+    ##create plotly heatmap
+    reg_dict = {}
+    for ct in rss_df.index:
+        reg_dict[ct] = list(rss_df.T[ct].sort_values(ascending=False)[:5].index)
+    auc_means = auc_df_ct.groupby(cell_type_column).mean().T
+    top_regs_list = []
+    for c in reversed(auc_means.columns):
+        top_cc = reg_dict[c]
+        top_cc_sorted = auc_means.loc[top_cc,c].sort_values(ascending=True).index
+        for r in top_cc_sorted:
+            if r not in top_regs_list:
+                top_regs_list.append(r)
+    hm_data = auc_means.loc[top_regs_list,:]
+    fig = go.Figure(data=go.Heatmap(
+        z=hm_data.values,
+        x=hm_data.columns,
+        y=hm_data.index,
+        colorscale='Reds',
+        colorbar=dict(title='AUC Score')
+    ))
+    fig.update_layout(title='Regulon Activity Heatmap', xaxis_title='Cell Types', yaxis_title='Regulons')
     
+    #plotly.offline.plot(fig, filename='results/plots/regulon_activity_heatmap.html')
+    html += plotly.io.to_html(fig, full_html=False, include_plotlyjs='cdn')
     for plot_file in plot_files:
         plot_name = os.path.basename(plot_file)
         plot_title = plot_titles.get(plot_name, plot_name)
@@ -321,11 +410,11 @@ def generate_html_report(auc_df, regulons, rss_df, plot_files):
     
     # Add all regulons
     for regulon_name, regulon_data in sorted(regulons.items()):
-        n_targets = regulon_data.get('n_targets', 'N/A')
+        n_targets = len(regulon_data)
         html += f"""
             <div class="regulon-item">
                 <strong>{regulon_name}</strong><br>
-                <small>{n_targets} target genes</small>
+                <small>{n_targets} target genes: {", ".join(regulon_data) if n_targets > 0 else "None"}</small>
             </div>
 """
     

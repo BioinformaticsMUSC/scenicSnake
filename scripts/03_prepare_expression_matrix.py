@@ -16,33 +16,34 @@ def main():
     adata = sc.read_h5ad(input_file)
 
     # Use snakemake.params for loom_preparation parameters
-    loom_params = snakemake.params['loom_preparation']
+    loom_params = snakemake.config['loom_preparation']
 
     if loom_params['split']:
         split_condition = loom_params['split_condition']
-        split_values = loom_params['split_values']
+        split_value = snakemake.params.split_value
         celltype_column = loom_params.get('celltype_column', None)
         assert split_condition in adata.obs.columns
-        for split_value in split_values:
-            assert split_value in adata.obs[split_condition].values
-            tmp_adata = adata[adata.obs[split_condition] == split_value].copy()
-            row_attrs = {
-                "Gene": np.array(tmp_adata.var_names),
-            }
-            col_attrs = {
-                "CellID": np.array(tmp_adata.obs_names),
-                "nGene": np.array(np.sum(tmp_adata.X.transpose() > 0, axis=0)).flatten(),
-                "nUMI": np.array(np.sum(tmp_adata.X.transpose(), axis=0)).flatten(),
-            }
-            if celltype_column:
-                col_attrs["CellAnno"] = np.array(tmp_adata.obs[celltype_column])
-            save_name = f"{output_file}_{split_value}.loom"
-            lp.create(
-                save_name,
-                tmp_adata.X.transpose(),
-                row_attrs=row_attrs,
-                col_attrs=col_attrs,
-            )
+        print(f"Preparing expression matrix for split condition '{split_condition}' with value '{split_value}'")
+        assert split_value in adata.obs[split_condition].values
+        tmp_adata = adata[adata.obs[split_condition] == split_value].copy()
+        print(tmp_adata)
+        row_attrs = {
+            "Gene": np.array(tmp_adata.var_names),
+        }
+        col_attrs = {
+            "CellID": np.array(tmp_adata.obs_names),
+            "nGene": np.array(np.sum(tmp_adata.X.transpose() > 0, axis=0)).flatten(),
+            "nUMI": np.array(np.sum(tmp_adata.X.transpose(), axis=0)).flatten(),
+        }
+        if celltype_column:
+            col_attrs["CellAnno"] = np.array(tmp_adata.obs[celltype_column])
+        save_name = f"{output_file}"
+        lp.create(
+            save_name,
+            tmp_adata.X.transpose(),
+            row_attrs=row_attrs,
+            col_attrs=col_attrs,
+        )
     else:
         celltype_column = loom_params.get('celltype_column', None)
         row_attrs = {

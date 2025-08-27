@@ -19,9 +19,9 @@ min_version("7.0")
 configfile: "config/config.yaml"
 
 # Load sample information
-split_column = config.get("split_column", None)
-split_values = config.get("split_values", [])
-
+split_column = config['loom_preparation'].get("split_condition", None)
+split_values = config['loom_preparation'].get("split_values", ["all"])
+print(split_values)
 def get_regulatory_feature_dbs():
     """Get regulatory feature databases from config"""
     return " ".join(config["scenic"].get("regulatory_feature_dbs", []))
@@ -47,38 +47,40 @@ def get_split_filenames(pattern):
 rule all:
     input:
         # SCENIC core outputs
-        get_split_filenames("results/scenic/{split}_adjacencies.tsv"),
-        get_split_filenames("results/scenic/{split}_regulons.json"),
-        get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
-        get_split_filenames("results/scenic/{split}_binary_regulon_activity.csv"),
+        expand("results/scenic/{split_value}_adjacencies.csv", split_value=split_values),
+        expand("results/scenic/{split_value}_regulons.csv", split_value=split_values),
+        expand("results/scenic/{split_value}_auc_matrix.csv", split_value=split_values),
 
         # Visualization outputs
-        get_split_filenames("results/plots/{split}_regulon_heatmap.pdf"),
-        get_split_filenames("results/plots/{split}_umap_regulon_activity.pdf"),
-        get_split_filenames("results/plots/{split}_rss_plot.pdf"),
+        expand("results/plots/{split_value}_regulon_heatmap.pdf", split_value=split_values),
+        expand("results/plots/{split_value}_umap_regulon_activity.pdf", split_value=split_values),
+        expand("results/plots/{split_value}_rss_plot.pdf", split_value=split_values),
 
         # Final report
-        get_split_filenames("results/reports/{split}_scenic_report.html")
+        expand("results/reports/{split_value}_scenic_report.html", split_value=split_values)
+        
 
 
 # SCENIC core rules
 rule create_expression_matrix:
     """Prepare expression matrix for SCENIC"""
     input:
-        lambda wildcards: config["loom_preparation"]["adata_file_path"]
+        config["loom_preparation"]["adata_file_path"]
     output:
-        get_split_filenames("results/scenic/{split}_expression_matrix.loom")
+        "results/scenic/{split_value}_expression_matrix.loom"
+    params:
+        split_value = "{split_value}"
     conda:
         "envs/scenic.yaml"
     script:
         "scripts/03_prepare_expression_matrix.py"
 
-rule genie3_inference:
-    """Infer gene regulatory network using GENIE3"""
+rule grn_inference:
+    """Infer gene regulatory network using GRNBOOST2"""
     input:
-        get_split_filenames("results/scenic/{split}_expression_matrix.loom")
+        "results/scenic/{split_value}_expression_matrix.loom"
     output:
-        get_split_filenames("results/scenic/{split}_adjacencies.csv")
+        "results/scenic/{split_value}_adjacencies.csv"
     params:
         n_jobs = config["scenic"]["n_jobs"],
         seed = config["scenic"]["seed"],
@@ -100,11 +102,10 @@ rule genie3_inference:
 rule create_regulons:
     """Create regulons from adjacencies using cisTarget"""
     input:
-        adjacencies = get_split_filenames("results/scenic/{split}_adjacencies.csv"),
-        expression = get_split_filenames("results/scenic/{split}_expression_matrix.loom")
+        adjacencies = "results/scenic/{split_value}_adjacencies.csv",
+        expression = "results/scenic/{split_value}_expression_matrix.loom"
     output:
-        regulons = get_split_filenames("results/scenic/{split}_regulons.json"),
-        motif_enrichment = get_split_filenames("results/scenic/{split}_motif_enrichment.csv")
+        regulons = "results/scenic/{split_value}_regulons.csv",
     params:
         database_fname = get_regulatory_feature_dbs(),
         annotations_fname = config["scenic"]["annotations_fname"],
@@ -120,7 +121,6 @@ rule create_regulons:
             --annotations_fname {params.annotations_fname} \
             --expression_mtx_fname {input.expression} \
             --output {output.regulons} \
-            --output_motif_enrichment {output.motif_enrichment} \
             --auc_threshold {params.auc_threshold} \
             --cell_id_attribute CellAnno \
             --min_genes {params.min_genes}
@@ -129,11 +129,10 @@ rule create_regulons:
 rule calculate_auc:
     """Calculate AUC scores for regulons"""
     input:
-        regulons = get_split_filenames("results/scenic/{split}_regulons.json"),
-        expression = get_split_filenames("results/scenic/{split}_expression_matrix.loom")
+        regulons = "results/scenic/{split_value}_regulons.csv",
+        expression = "results/scenic/{split_value}_expression_matrix.loom"
     output:
-        auc_matrix = get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
-        binary_activity = get_split_filenames("results/scenic/{split}_binary_regulon_activity.csv")
+        auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
     params:
         auc_threshold = config["scenic"]["auc_threshold"]
     conda:
@@ -151,13 +150,16 @@ rule calculate_auc:
 rule plot_regulon_heatmap:
     """Create heatmap of regulon activity"""
     input:
-        auc_matrix = get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
-        metadata = config["loom_preparation"]["adata_file_path"]
+        auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
+        metadata = config["loom_preparation"]["adata_file_path"],
+        rss_scores = "results/scenic/{split_value}_rss_scores.csv",
     output:
-        get_split_filenames("results/plots/{split}_regulon_heatmap.pdf")
+        "results/plots/{split_value}_regulon_heatmap.pdf"
     params:
         top_regulons = config["visualization"]["top_regulons"],
-        split_value = (lambda split_col: (lambda wildcards: wildcards.split if split_col else "all"))(split_column)
+        split_value = "{split_value}",
+        split_column = config["loom_preparation"]["split_condition"],
+        cell_type_column = config["visualization"]["cell_type_column"]
     conda:
         "envs/scenic.yaml"
     script:
@@ -166,12 +168,15 @@ rule plot_regulon_heatmap:
 rule plot_umap_regulon_activity:
     """Plot UMAP colored by regulon activity"""
     input:
-        auc_matrix = get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
+        auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
         metadata = config["loom_preparation"]["adata_file_path"]
     output:
-        get_split_filenames("results/plots/{split}_umap_regulon_activity.pdf")
+        "results/plots/{split_value}_umap_regulon_activity.pdf"
     params:
-        selected_regulons = config["visualization"]["selected_regulons"]
+        selected_regulons = config["visualization"]["selected_regulons"],
+        split_value = "{split_value}",
+        split_column = config["loom_preparation"]["split_condition"],
+        cell_type_column = config["visualization"]["cell_type_column"]
     conda:
         "envs/scenic.yaml"
     script:
@@ -180,13 +185,15 @@ rule plot_umap_regulon_activity:
 rule calculate_rss:
     """Calculate Regulon Specificity Score (RSS)"""
     input:
-        auc_matrix = get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
+        auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
         metadata = config["loom_preparation"]["adata_file_path"]
     output:
-        rss_scores = get_split_filenames("results/scenic/{split}_rss_scores.csv"),
-        rss_plot = get_split_filenames("results/plots/{split}_rss_plot.pdf")
+        rss_scores = "results/scenic/{split_value}_rss_scores.csv",
+        rss_plot = "results/plots/{split_value}_rss_plot.pdf"
     params:
-        cell_type_column = config["visualization"]["cell_type_column"]
+        cell_type_column = config["visualization"]["cell_type_column"],
+        split_value = "{split_value}",
+        split_column = config["loom_preparation"]["split_condition"]
     conda:
         "envs/scenic.yaml"
     script:
@@ -196,16 +203,20 @@ rule calculate_rss:
 rule generate_report:
     """Generate final HTML report"""
     input:
-        auc_matrix = get_split_filenames("results/scenic/{split}_auc_matrix.csv"),
-        regulons = get_split_filenames("results/scenic/{split}_regulons.json"),
-        rss_scores = get_split_filenames("results/scenic/{split}_rss_scores.csv"),
+        auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
+        regulons = "results/scenic/{split_value}_regulons.csv",
+        rss_scores = "results/scenic/{split_value}_rss_scores.csv",
+        metadata = config["loom_preparation"]["adata_file_path"],
         plots = [
-            get_split_filenames("results/plots/{split}_regulon_heatmap.pdf"),
-            get_split_filenames("results/plots/{split}_umap_regulon_activity.pdf"),
-            get_split_filenames("results/plots/{split}_rss_plot.pdf")
+            "results/plots/{split_value}_regulon_heatmap.pdf",
+            "results/plots/{split_value}_umap_regulon_activity.pdf",
+            "results/plots/{split_value}_rss_plot.pdf"
         ]
     output:
-        get_split_filenames("results/reports/{split}_scenic_report.html")
+        "results/reports/{split_value}_scenic_report.html"
+    params:
+        split= "{split_value}",
+        cell_type_column = config["visualization"]["cell_type_column"]
     conda:
         "envs/scenic.yaml"
     script:

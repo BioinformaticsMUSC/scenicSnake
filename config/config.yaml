@@ -12,10 +12,10 @@ filtering:
   max_genes_per_cell: 5000      # Maximum number of genes per cell (filter doublets)
   max_mitochondrial_percent: 20  # Maximum mitochondrial gene percentage
 
-#Loom preparation parameters
+# Loom preparation parameters
 loom_preparation:
-  adata_file_path: "data/filtered_adata.h5ad"  
-  output_file: "data/expression_matrix.loom"  # Output file for the loom format# Scale the data
+  adata_file_path: "data/filtered_adata.h5ad"
+  output_file: "data/expression_matrix.loom"  # Output file for the loom format
   celltype_column: ""  # Column name for cell type annotations
   split: false            # Whether to split the loom file by condition
   split_condition: ""    # Condition column for splitting (if applicable)
