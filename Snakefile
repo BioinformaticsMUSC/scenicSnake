@@ -21,7 +21,6 @@ configfile: "config/config.yaml"
 # Load sample information
 split_column = config['loom_preparation'].get("split_condition", None)
 split_values = config['loom_preparation'].get("split_values", ["all"])
-print(split_values)
 def get_regulatory_feature_dbs():
     """Get regulatory feature databases from config"""
     return " ".join(config["scenic"].get("regulatory_feature_dbs", []))
@@ -42,6 +41,9 @@ def get_split_filenames(pattern):
 # "results/plots/{split}_regulon_heatmap.pdf"
 # "results/reports/{split}_scenic_report.html"
 
+def get_auc_matrices(split_values):
+    """Generate AUC matrix file paths for given split values"""
+    return [f"results/scenic/{split}_auc_matrix.csv" for split in split_values]
 
 # Define rule all (final outputs)
 rule all:
@@ -55,6 +57,7 @@ rule all:
         expand("results/plots/{split_value}_regulon_heatmap.pdf", split_value=split_values),
         expand("results/plots/{split_value}_umap_regulon_activity.pdf", split_value=split_values),
         expand("results/plots/{split_value}_rss_plot.pdf", split_value=split_values),
+        "results/plots/OVERALL_group_heatmap.pdf",
 
         # Final report
         expand("results/reports/{split_value}_scenic_report.html", split_value=split_values)
@@ -222,6 +225,23 @@ rule generate_report:
     script:
         "scripts/10_generate_report.py"
 
+
+rule compare_groups:
+    """Compare regulon activity between groups"""
+    input:
+        get_auc_matrices(split_values),
+        adata_file = config["loom_preparation"]["adata_file_path"]
+    output:
+        "results/plots/OVERALL_group_heatmap.pdf"
+    params:
+        auc_path = "results/scenic/??GROUP??_auc_matrix.csv",
+        rss_path = "results/scenic/??GROUP??_rss_scores.csv",
+        cell_type_column = config["visualization"]["cell_type_column"],
+        split_values = config["loom_preparation"]["split_values"]
+    conda:
+        "envs/scenic.yaml"
+    script:
+        "scripts/11_compare_groups.py"
 # Utility rules
 rule clean:
     """Clean intermediate files"""
