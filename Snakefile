@@ -19,6 +19,9 @@ min_version("7.0")
 configfile: "config/config.yaml"
 
 # Load sample information
+samples_df = pd.read_csv(config["samples"], sep="\t", comment="#")
+samples = samples_df.set_index("sample_id", drop=False).to_dict("index")
+
 split_column = config['loom_preparation'].get("split_condition", None)
 split_values = config['loom_preparation'].get("split_values", ["all"])
 def get_regulatory_feature_dbs():
@@ -48,6 +51,9 @@ def get_auc_matrices(split_values):
 # Define rule all (final outputs)
 rule all:
     input:
+        # Merged metadata
+        "results/metadata/merged_metadata.h5ad",
+        
         # SCENIC core outputs
         expand("results/scenic/{split_value}_adjacencies.csv", split_value=split_values),
         expand("results/scenic/{split_value}_regulons.csv", split_value=split_values),
@@ -65,14 +71,27 @@ rule all:
 
 
 # SCENIC core rules
+rule merge_metadata:
+    """Merge metadata from multiple h5ad files"""
+    input:
+        h5ad_files = lambda wildcards: [samples[sample]["file_path"] for sample in samples.keys()]
+    output:
+        "results/metadata/merged_metadata.h5ad"
+    conda:
+        "envs/scenic.yaml"
+    script:
+        "scripts/02_merge_samples.py"
+
 rule create_expression_matrix:
     """Prepare expression matrix for SCENIC"""
     input:
-        config["loom_preparation"]["adata_file_path"]
+        h5ad_files = lambda wildcards: [samples[sample]["file_path"] for sample in samples.keys()]
     output:
         "results/scenic/{split_value}_expression_matrix.loom"
     params:
-        split_value = "{split_value}"
+        split_value = "{split_value}",
+        split_column = config['loom_preparation'].get("split_condition", None),
+        samples_dict = lambda wildcards: samples
     conda:
         "envs/scenic.yaml"
     script:
@@ -154,7 +173,7 @@ rule plot_regulon_heatmap:
     """Create heatmap of regulon activity"""
     input:
         auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
-        metadata = config["loom_preparation"]["adata_file_path"],
+        metadata = "results/metadata/merged_metadata.h5ad",
         rss_scores = "results/scenic/{split_value}_rss_scores.csv",
     output:
         "results/plots/{split_value}_regulon_heatmap.pdf"
@@ -172,7 +191,7 @@ rule plot_umap_regulon_activity:
     """Plot UMAP colored by regulon activity"""
     input:
         auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
-        metadata = config["loom_preparation"]["adata_file_path"]
+        metadata = "results/metadata/merged_metadata.h5ad"
     output:
         "results/plots/{split_value}_umap_regulon_activity.pdf"
     params:
@@ -189,7 +208,7 @@ rule calculate_rss:
     """Calculate Regulon Specificity Score (RSS)"""
     input:
         auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
-        metadata = config["loom_preparation"]["adata_file_path"]
+        metadata = "results/metadata/merged_metadata.h5ad"
     output:
         rss_scores = "results/scenic/{split_value}_rss_scores.csv",
         rss_plot = "results/plots/{split_value}_rss_plot.pdf"
@@ -209,7 +228,7 @@ rule generate_report:
         auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
         regulons = "results/scenic/{split_value}_regulons.csv",
         rss_scores = "results/scenic/{split_value}_rss_scores.csv",
-        metadata = config["loom_preparation"]["adata_file_path"],
+        metadata = "results/metadata/merged_metadata.h5ad",
         plots = [
             "results/plots/{split_value}_regulon_heatmap.pdf",
             "results/plots/{split_value}_umap_regulon_activity.pdf",
@@ -230,7 +249,7 @@ rule compare_groups:
     """Compare regulon activity between groups"""
     input:
         get_auc_matrices(split_values),
-        adata_file = config["loom_preparation"]["adata_file_path"]
+        adata_file = "results/metadata/merged_metadata.h5ad"
     output:
         "results/plots/OVERALL_group_heatmap.pdf"
     params:

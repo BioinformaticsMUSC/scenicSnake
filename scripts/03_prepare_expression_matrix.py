@@ -10,10 +10,21 @@ import loompy as lp
 
 def main():
     # Get parameters from snakemake
-    input_file = snakemake.input[0]
+    input_files = snakemake.input.h5ad_files
     output_file = snakemake.output[0]
-
-    adata = sc.read_h5ad(input_file)
+    
+    # Load and concatenate multiple h5ad files
+    print(f"Loading {len(input_files)} h5ad files...")
+    adata_list = []
+    for i, input_file in enumerate(input_files):
+        print(f"Loading file {i+1}/{len(input_files)}: {input_file}")
+        adata = sc.read_h5ad(input_file)
+        adata_list.append(adata)
+    
+    # Concatenate all samples
+    print("Concatenating samples...")
+    adata = sc.concat(adata_list, axis=0, join="outer", fill_value=0)
+    print(f"Combined data shape: {adata.shape}")
 
     # Use snakemake.params for loom_preparation parameters
     loom_params = snakemake.config['loom_preparation']
