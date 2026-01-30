@@ -16,6 +16,11 @@ From: condaforge/mambaforge:latest
     export PATH="/opt/conda/envs/scenic/bin:$PATH"
 
 %post
+    # Set timezone non-interactively to avoid tzdata prompts
+    export DEBIAN_FRONTEND=noninteractive
+    ln -fs /usr/share/zoneinfo/UTC /etc/localtime
+    echo "UTC" > /etc/timezone
+    
     # Install system dependencies
     apt-get update && apt-get install -y \
         git \
