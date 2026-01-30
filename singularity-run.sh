@@ -79,7 +79,7 @@ case $COMMAND in
             --bind "$(pwd)/config:/opt/scenic/config" \
             --pwd /workflow \
             scenic-workflow.sif \
-            conda run -n scenic python /opt/scenic/test_setup.py
+            conda run -n scenic python /workflow/test_setup.py
         ;;
     
     "dry-run")
