@@ -30,11 +30,16 @@ case $COMMAND in
         echo -e "${GREEN}Available commands:${NC}"
         echo "  ./docker-run.sh help          - Show this help"
         echo "  ./docker-run.sh test          - Test the workflow setup"
-        echo "  ./docker-run.sh dry-run       - Perform a dry run"
-        echo "  ./docker-run.sh run           - Run the complete workflow"
+        echo "  ./docker-run.sh dry-run       - Perform a dry run (Docker containers)"
+        echo "  ./docker-run.sh run           - Run the complete workflow (Docker containers)"
         echo "  ./docker-run.sh shell         - Start interactive shell"
         echo "  ./docker-run.sh clean         - Clean intermediate files"
         echo "  ./docker-run.sh jupyter       - Start Jupyter notebook"
+        echo ""
+        echo -e "${GREEN}Docker Configuration:${NC}"
+        echo "  Uses Docker containers instead of conda environments"
+        echo "  Each rule runs in isolated Docker containers"
+        echo "  Requires Docker socket access for container orchestration"
         echo ""
         echo -e "${GREEN}Volume mounts:${NC}"
         echo "  ./data    -> /data (input data)"
@@ -59,8 +64,11 @@ case $COMMAND in
             -v "$(pwd)/results:/opt/scenic/results" \
             -v "$(pwd)/config:/opt/scenic/config:ro" \
             -v "$(pwd)/logs:/opt/scenic/logs" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /tmp:/tmp \
             scenic-snakemake:latest \
-            conda run -n scenic snakemake -n --cores 1
+            conda run -n scenic snakemake -n --cores 1 --use-singularity \
+            --singularity-args "--bind /tmp:/tmp --bind /data:/data"
         ;;
     
     "run")
@@ -70,8 +78,12 @@ case $COMMAND in
             -v "$(pwd)/results:/opt/scenic/results" \
             -v "$(pwd)/config:/opt/scenic/config:ro" \
             -v "$(pwd)/logs:/opt/scenic/logs" \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v /tmp:/tmp \
             scenic-snakemake:latest \
-            conda run -n scenic snakemake --cores 8 --use-conda --printshellcmds
+            conda run -n scenic snakemake --cores 8 --use-singularity \
+            --singularity-args "--bind /tmp:/tmp --bind /data:/data" \
+            --printshellcmds
         ;;
     
     "shell")

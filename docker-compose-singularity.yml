@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  scenic-workflow:
+    build: .
+    image: scenic-snakemake:latest
+    volumes:
+      - ./data:/data
+      - ./results:/opt/scenic/results
+      - ./config:/opt/scenic/config:ro
+      - ./logs:/opt/scenic/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp:/tmp
+    environment:
+      - SNAKEMAKE_USE_SINGULARITY=1
+    command: >
+      conda run -n scenic snakemake 
+      --cores 8 
+      --use-singularity 
+      --singularity-args "--bind /tmp:/tmp"
+      --printshellcmds
+    networks:
+      - scenic-network
+
+networks:
+  scenic-network:
+    driver: bridge

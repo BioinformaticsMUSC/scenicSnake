@@ -23,7 +23,13 @@ RUN apt-get update && apt-get install -y \
     libcurl4-gnutls-dev \
     libssl-dev \
     libxml2-dev \
+    squashfs-tools \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Singularity for container support in Snakemake
+RUN wget -O singularity.deb https://github.com/apptainer/singularity/releases/download/v3.8.7/singularity-container_3.8.7_amd64.deb && \
+    dpkg -i singularity.deb || apt-get install -f -y && \
+    rm singularity.deb
 
 # Create working directory
 WORKDIR /opt/scenic

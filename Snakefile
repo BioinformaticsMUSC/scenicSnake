@@ -18,6 +18,14 @@ min_version("7.0")
 # Configuration
 configfile: "config/config.yaml"
 
+# Container configuration for Singularity/Docker compatibility
+# You can modify this to use different container sources:
+# - "docker://condaforge/mambaforge:latest" for conda-based execution
+# - "docker://biocontainers/pyscenic:0.12.1--pyhdfd78af_0" for pre-built SCENIC
+# - "scenic-workflow.sif" for local Singularity image
+# - "docker://your-dockerhub-user/scenic-snakemake:latest" for Docker Hub
+CONTAINER_IMAGE = "docker://condaforge/mambaforge:latest"
+
 # Load sample information
 samples_df = pd.read_csv(config["samples"], sep="\t", comment="#")
 samples = samples_df.set_index("sample_id", drop=False).to_dict("index")
@@ -77,8 +85,8 @@ rule merge_metadata:
         h5ad_files = lambda wildcards: [samples[sample]["file_path"] for sample in samples.keys()]
     output:
         "results/metadata/merged_metadata.h5ad"
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/02_merge_samples.py"
 
@@ -92,8 +100,8 @@ rule create_expression_matrix:
         split_value = "{split_value}",
         split_column = config['loom_preparation'].get("split_condition", None),
         samples_dict = lambda wildcards: samples
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/03_prepare_expression_matrix.py"
 
@@ -108,8 +116,8 @@ rule grn_inference:
         seed = config["scenic"]["seed"],
         path_to_TF_list = config["scenic"]["path_to_TF_list"]
     threads: config["scenic"]["n_jobs"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     shell:
         """
         pyscenic grn \
@@ -133,8 +141,8 @@ rule create_regulons:
         annotations_fname = config["scenic"]["annotations_fname"],
         min_genes = config["scenic"]["min_genes_per_regulon"],
         auc_threshold = config["scenic"]["auc_threshold"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     shell:
         """
         pyscenic ctx \
@@ -157,8 +165,8 @@ rule calculate_auc:
         auc_matrix = "results/scenic/{split_value}_auc_matrix.csv",
     params:
         auc_threshold = config["scenic"]["auc_threshold"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     shell:
         """
         pyscenic aucell \
@@ -182,8 +190,8 @@ rule plot_regulon_heatmap:
         split_value = "{split_value}",
         split_column = config["loom_preparation"]["split_condition"],
         cell_type_column = config["visualization"]["cell_type_column"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        "docker://scenic-snakemake:latest"
     script:
         "scripts/07_plot_heatmap.py"
 
@@ -199,8 +207,8 @@ rule plot_umap_regulon_activity:
         split_value = "{split_value}",
         split_column = config["loom_preparation"]["split_condition"],
         cell_type_column = config["visualization"]["cell_type_column"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/08_plot_umap.py"
 
@@ -216,8 +224,8 @@ rule calculate_rss:
         cell_type_column = config["visualization"]["cell_type_column"],
         split_value = "{split_value}",
         split_column = config["loom_preparation"]["split_condition"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/09_calculate_rss.py"
 
@@ -239,8 +247,8 @@ rule generate_report:
     params:
         split= "{split_value}",
         cell_type_column = config["visualization"]["cell_type_column"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/10_generate_report.py"
 
@@ -257,8 +265,8 @@ rule compare_groups:
         rss_path = "results/scenic/??GROUP??_rss_scores.csv",
         cell_type_column = config["visualization"]["cell_type_column"],
         split_values = config["loom_preparation"]["split_values"]
-    conda:
-        "envs/scenic.yaml"
+    container:
+        CONTAINER_IMAGE
     script:
         "scripts/11_compare_groups.py"
 # Utility rules

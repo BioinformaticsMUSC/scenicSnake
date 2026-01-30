@@ -1,8 +1,15 @@
 # Docker Usage Guide for SCENIC Snakemake Workflow
 
-This guide explains how to run the SCENIC workflow using Docker for maximum portability and reproducibility.
+This guide explains how to run the SCENIC workflow using Docker containers instead of conda environments for maximum portability and reproducibility.
 
-## Quick Start with Docker
+## Container Architecture
+
+The workflow now uses Docker containers for each rule instead of conda environments:
+- **Main container**: `scenic-snakemake:latest` - Contains all SCENIC dependencies
+- **Snakemake execution**: Uses `--use-singularity` flag to orchestrate containers
+- **Isolation**: Each rule runs in its own container instance
+
+## Quick Start with Docker Containers
 
 ### 1. Build the Docker Image
 
@@ -19,57 +26,70 @@ docker build -t scenic-snakemake:latest .
 
 ### 2. Prepare Your Data
 
-Create the necessary directories and place your data:
+Create the necessary directories and place your h5ad files:
 
 ```bash
 mkdir -p data results config logs
-# Place your .h5ad file in the data/ directory
+# Place your .h5ad files in the data/ directory  
+# Update config/samples.tsv with your file paths
 # Update config/config.yaml with your settings
 ```
 
-### 3. Run the Workflow
+### 3. Run the Workflow with Docker Containers
 
 ```bash
 # Test the setup
 ./docker-run.sh test
 
-# Dry run to check workflow
+# Dry run to check workflow (using Docker containers)
 ./docker-run.sh dry-run
 
-# Run the complete workflow
+# Run the complete workflow (using Docker containers)
 ./docker-run.sh run
 ```
+
+## Docker Container Architecture
+
+### Container vs Conda Mode
+
+This workflow now supports two execution modes:
+
+**Container Mode (Recommended)**:
+- Each Snakemake rule runs in a Docker container
+- Uses `--use-singularity` flag in Snakemake  
+- Maximum isolation and reproducibility
+- No conda environment conflicts
+
+**Conda Mode (Legacy)**:
+- Uses conda environments within a single container
+- Requires `--use-conda` flag instead
+
+### Container Requirements
+
+- Docker daemon running on host
+- Docker socket access (`/var/run/docker.sock`)
+- Singularity support in the main container
+- Sufficient disk space for container images
 
 ## Docker Commands
 
 ### Using the Helper Script
 
-The `docker-run.sh` script provides convenient commands:
+The `docker-run.sh` script provides convenient commands for container mode:
 
 ```bash
-./docker-run.sh help          # Show available commands
+./docker-run.sh help          # Show available commands  
 ./docker-run.sh test          # Test workflow setup
-./docker-run.sh dry-run       # Perform dry run
-./docker-run.sh run           # Run complete workflow
+./docker-run.sh dry-run       # Perform dry run (containers)
+./docker-run.sh run           # Run complete workflow (containers)
 ./docker-run.sh shell         # Interactive shell
 ./docker-run.sh clean         # Clean intermediate files
 ./docker-run.sh jupyter       # Start Jupyter notebook
 ```
 
-### Using Make Commands
-
-```bash
-make docker-build     # Build Docker image
-make docker-run       # Run workflow in Docker
-make docker-shell     # Start interactive shell
-make docker-test      # Test workflow
-make docker-clean     # Clean Docker resources
-```
-
 ### Using Docker Compose
 
-```bash
-# Start the main workflow container
+Container mode using docker-compose:
 docker-compose up scenic
 
 # Start with Jupyter notebook
