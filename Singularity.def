@@ -56,19 +56,14 @@ From: condaforge/mambaforge:latest
         && mamba clean -afy
 
     # Activate environment and install latest packages via pip
-    /opt/conda/envs/scenic/bin/pip install \
+    eval "$(/opt/conda/bin/conda shell.bash hook)" && \
+    conda activate scenic && \
+    pip install \
+        matplotlib \
         scanpy \
         pyscenic \
         arboreto \
-        ctxcore \
-        matplotlib
-
-    # Alternative: install specific versions if needed
-    # /opt/conda/envs/scenic/bin/pip install \
-    #     "scanpy>=1.10" \
-    #     "pyscenic>=1.2.4" \
-    #     arboreto \
-    #     ctxcore
+        ctxcore
 
     # Activate the environment by default
     echo "conda activate scenic" >> /opt/conda/etc/profile.d/conda.sh
