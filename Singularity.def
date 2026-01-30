@@ -2,7 +2,7 @@
 # Build with: singularity build scenic-workflow.sif Singularity.def
 
 Bootstrap: docker
-From: condaforge/mambaforge:latest
+From: continuumio/miniconda3:latest
 
 %labels
     Author Bryan Granger
@@ -39,7 +39,7 @@ From: condaforge/mambaforge:latest
     mkdir -p /opt/scenic
 
     # Create SCENIC conda environment with base dependencies
-    mamba create -y -n scenic -c conda-forge -c anaconda \
+    conda create -y -n scenic -c conda-forge -c anaconda \
         python=3.9 \
         snakemake-minimal>=7.0 \
         loompy \
@@ -55,7 +55,7 @@ From: condaforge/mambaforge:latest
         pip
 
     # Clean up after conda install
-    mamba clean -afy
+    conda clean -afy
 
     # Verify environment was created and find python path
     ls -la /opt/conda/envs/
