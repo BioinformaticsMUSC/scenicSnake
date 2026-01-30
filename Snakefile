@@ -158,16 +158,17 @@ rule calculate_auc:
 rule plot_regulon_heatmap:
     """Create heatmap of regulon activity"""
     input:
-        auc_matrix = "results/scenic/auc_matrix.csv",
-        metadata = "results/metadata/merged_metadata.h5ad",
-        rss_scores = "results/scenic/rss_scores.csv",
+        auc_matrix = "results/scenic/{sample_id}_auc_matrix.csv",
+        metadata = lambda wildcards: samples[wildcards.sample_id]["file_path"],
+        rss_scores = "results/scenic/{sample_id}_rss_scores.csv",
     output:
-        "results/plots/regulon_heatmap.pdf"
+        "results/plots/{sample_id}_regulon_heatmap.pdf"
     params:
         top_regulons = config["visualization"]["top_regulons"],
+        sample_id = "{sample_id}",
         cell_type_column = config["visualization"]["cell_type_column"]
     container:
-        "docker://scenic-snakemake:latest"
+        CONTAINER_IMAGE
     script:
         "scripts/07_plot_heatmap.py"
 
