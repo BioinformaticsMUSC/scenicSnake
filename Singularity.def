@@ -55,10 +55,8 @@ From: condaforge/mambaforge:latest
         pip \
         && mamba clean -afy
 
-    # Activate environment and install latest packages via pip
-    eval "$(/opt/conda/bin/conda shell.bash hook)" && \
-    conda activate scenic && \
-    pip install \
+    # Install latest packages via pip directly to the environment
+    /opt/conda/envs/scenic/bin/python -m pip install \
         matplotlib \
         scanpy \
         pyscenic \
