@@ -44,7 +44,7 @@ From: continuumio/miniconda3:latest
         snakemake-minimal>=7.0 \
         loompy \
         pandas \
-        numpy \
+        "numpy<2.0" \
         seaborn \
         jupyter \
         h5py \
