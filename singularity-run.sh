@@ -74,8 +74,10 @@ case $COMMAND in
     "test")
         echo -e "${YELLOW}Testing workflow setup...${NC}"
         singularity exec \
+            --bind "$(pwd):/workflow" \
             --bind "$(pwd)/data:/data" \
             --bind "$(pwd)/config:/opt/scenic/config" \
+            --pwd /workflow \
             scenic-workflow.sif \
             conda run -n scenic python /opt/scenic/test_setup.py
         ;;
@@ -83,12 +85,13 @@ case $COMMAND in
     "dry-run")
         echo -e "${YELLOW}Performing dry run...${NC}"
         singularity exec \
+            --bind "$(pwd):/workflow" \
             --bind "$(pwd)/data:/data" \
             --bind "$(pwd)/results:/opt/scenic/results" \
             --bind "$(pwd)/config:/opt/scenic/config" \
             --bind "$(pwd)/logs:/opt/scenic/logs" \
             --bind /tmp:/tmp \
-            --pwd /opt/scenic \
+            --pwd /workflow \
             scenic-workflow.sif \
             conda run -n scenic snakemake -n --cores 1 --use-singularity --singularity-prefix "$(pwd)/.snakemake/singularity"
         ;;
@@ -96,12 +99,13 @@ case $COMMAND in
     "run")
         echo -e "${YELLOW}Running SCENIC workflow...${NC}"
         singularity exec \
+            --bind "$(pwd):/workflow" \
             --bind "$(pwd)/data:/data" \
             --bind "$(pwd)/results:/opt/scenic/results" \
             --bind "$(pwd)/config:/opt/scenic/config" \
             --bind "$(pwd)/logs:/opt/scenic/logs" \
             --bind /tmp:/tmp \
-            --pwd /opt/scenic \
+            --pwd /workflow \
             scenic-workflow.sif \
             conda run -n scenic snakemake --cores 8 --use-singularity --singularity-prefix "$(pwd)/.snakemake/singularity" --printshellcmds
         ;;

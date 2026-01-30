@@ -32,6 +32,11 @@ samples = samples_df.set_index("sample_id", drop=False).to_dict("index")
 
 split_column = config['loom_preparation'].get("split_condition", None)
 split_values = config['loom_preparation'].get("split_values", ["all"])
+
+# Ensure split_values is not empty - default to "all" if empty
+if not split_values:
+    split_values = ["all"]
+    
 def get_regulatory_feature_dbs():
     """Get regulatory feature databases from config"""
     return " ".join(config["scenic"].get("regulatory_feature_dbs", []))

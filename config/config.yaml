@@ -19,7 +19,7 @@ loom_preparation:
   celltype_column: ""  # Column name for cell type annotations
   split: false            # Whether to split the loom file by condition
   split_condition: ""    # Condition column for splitting (if applicable)
-  split_values: []  # Values to split by (if applicable)
+  split_values: ["all"]  # Values to split by (if applicable) - use ["all"] for no splitting
 
 # SCENIC parameters
 scenic:
