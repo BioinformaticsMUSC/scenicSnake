@@ -88,7 +88,7 @@ def main():
         print("\nNext steps:")
         print("1. Update config/samples.tsv with your data paths")
         print("2. Adjust parameters in config/config.yaml if needed")
-        print("3. Run: snakemake --cores 8 --use-conda")
+        print("3. Run: ./singularity-run.sh run")
     else:
         print("❌ Some checks failed. Please fix the issues above.")
         sys.exit(1)

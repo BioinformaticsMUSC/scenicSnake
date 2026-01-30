@@ -38,26 +38,37 @@ From: condaforge/mambaforge:latest
     # Create working directory
     mkdir -p /opt/scenic
 
-    # Create SCENIC conda environment with all dependencies
-    mamba create -n scenic -c bioconda -c conda-forge -c anaconda \
+    # Create SCENIC conda environment with base dependencies
+    mamba create -n scenic -c conda-forge -c anaconda \
         python=3.9 \
         snakemake-minimal>=7.0 \
-        scanpy \
         loompy \
         pandas \
         numpy \
-        matplotlib \
         seaborn \
-        pyscenic \
         jupyter \
         h5py \
         scipy \
         scikit-learn \
         dask \
         cytoolz \
+        pip \
+        && mamba clean -afy
+
+    # Activate environment and install latest packages via pip
+    /opt/conda/envs/scenic/bin/pip install \
+        scanpy \
+        pyscenic \
         arboreto \
         ctxcore \
-        && mamba clean -afy
+        matplotlib
+
+    # Alternative: install specific versions if needed
+    # /opt/conda/envs/scenic/bin/pip install \
+    #     "scanpy>=1.10" \
+    #     "pyscenic>=1.2.4" \
+    #     arboreto \
+    #     ctxcore
 
     # Activate the environment by default
     echo "conda activate scenic" >> /opt/conda/etc/profile.d/conda.sh
@@ -74,27 +85,28 @@ From: condaforge/mambaforge:latest
     cat > /opt/scenic/envs/scenic.yaml << EOF
 name: scenic
 channels:
-  - bioconda
   - conda-forge
   - anaconda
 dependencies:
   - python=3.9
   - snakemake-minimal>=7.0
-  - scanpy
   - loompy
   - pandas
   - numpy
-  - matplotlib
+  - matplotlib<3.7
   - seaborn
-  - pyscenic
   - jupyter
   - h5py
   - scipy
   - scikit-learn
   - dask
   - cytoolz
-  - arboreto
-  - ctxcore
+  - pip
+  - pip:
+    - scanpy
+    - pyscenic
+    - arboreto
+    - ctxcore
 EOF
 
 %files
