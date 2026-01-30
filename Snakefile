@@ -20,11 +20,11 @@ configfile: "config/config.yaml"
 
 # Container configuration for Singularity/Docker compatibility
 # You can modify this to use different container sources:
-# - "docker://condaforge/mambaforge:latest" for conda-based execution
+# - "docker://condaforge/mambaforge:latest" for conda-based execution (requires internet)
 # - "docker://biocontainers/pyscenic:0.12.1--pyhdfd78af_0" for pre-built SCENIC
-# - "scenic-workflow.sif" for local Singularity image
-# - "docker://your-dockerhub-user/scenic-snakemake:latest" for Docker Hub
-CONTAINER_IMAGE = "docker://condaforge/mambaforge:latest"
+# - "scenic-workflow.sif" for local Singularity image (recommended for HPC)
+# - "docker://yourusername/scenic-snakemake:latest" for custom Docker Hub image
+CONTAINER_IMAGE = "scenic-workflow.sif"
 
 # Load sample information
 samples_df = pd.read_csv(config["samples"], sep="\t", comment="#")

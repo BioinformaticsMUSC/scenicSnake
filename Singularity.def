@@ -27,16 +27,16 @@ From: condaforge/mambaforge:latest
         libhdf5-dev \
         libcurl4-gnutls-dev \
         libxml2-dev \
+        squashfs-tools \
         && rm -rf /var/lib/apt/lists/*
 
     # Create working directory
     mkdir -p /opt/scenic
 
-    # Copy environment file and create conda environment
-    # Note: In actual use, you'd copy the environment file during build
-    # For now, we'll create a minimal SCENIC environment
-    mamba install -n base -c bioconda -c conda-forge \
-        snakemake \
+    # Create SCENIC conda environment with all dependencies
+    mamba create -n scenic -c bioconda -c conda-forge -c anaconda \
+        python=3.9 \
+        snakemake-minimal>=7.0 \
         scanpy \
         loompy \
         pandas \
@@ -44,23 +44,66 @@ From: condaforge/mambaforge:latest
         matplotlib \
         seaborn \
         pyscenic \
-        jupyter
+        jupyter \
+        h5py \
+        scipy \
+        scikit-learn \
+        dask \
+        cytoolz \
+        arboreto \
+        ctxcore \
+        && mamba clean -afy
+
+    # Activate the environment by default
+    echo "conda activate scenic" >> /opt/conda/etc/profile.d/conda.sh
 
     # Create necessary directories
     mkdir -p /opt/scenic/data \
              /opt/scenic/results \
-             /opt/scenic/logs
+             /opt/scenic/logs \
+             /opt/scenic/envs \
+             /opt/scenic/scripts \
+             /opt/scenic/config
+
+    # Create a simple environment file for reference
+    cat > /opt/scenic/envs/scenic.yaml << EOF
+name: scenic
+channels:
+  - bioconda
+  - conda-forge
+  - anaconda
+dependencies:
+  - python=3.9
+  - snakemake-minimal>=7.0
+  - scanpy
+  - loompy
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - pyscenic
+  - jupyter
+  - h5py
+  - scipy
+  - scikit-learn
+  - dask
+  - cytoolz
+  - arboreto
+  - ctxcore
+EOF
 
 %files
-    # Copy workflow files (adjust paths as needed)
-    envs/scenic.yaml /opt/scenic/envs/scenic.yaml
+    # Note: Files will be copied from the host during build if they exist
+    # This is optional - the container will work without these files
 
 %runscript
-    # Default command
-    exec snakemake "$@"
+    # Default command - activate environment and run snakemake
+    exec /opt/conda/envs/scenic/bin/snakemake "$@"
 
 %help
     This container contains the SCENIC Snakemake workflow for single-cell regulatory network analysis.
+    
+    Built with all SCENIC dependencies pre-installed in a conda environment.
     
     Usage:
         singularity exec scenic-workflow.sif snakemake [options]
@@ -68,4 +111,10 @@ From: condaforge/mambaforge:latest
     Examples:
         singularity exec scenic-workflow.sif snakemake --help
         singularity exec scenic-workflow.sif snakemake -n --cores 1
-        singularity exec scenic-workflow.sif snakemake --cores 8 --use-singularity
+        singularity exec scenic-workflow.sif snakemake --cores 8 --use-conda
+        
+    The conda environment 'scenic' contains:
+    - Python 3.9
+    - Snakemake >=7.0
+    - scanpy, pySCENIC, loompy
+    - All scientific Python stack

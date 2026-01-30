@@ -14,11 +14,23 @@ NC='\033[0m' # No Color
 echo -e "${GREEN}🔬 SCENIC Singularity Workflow Runner${NC}"
 echo "====================================="
 
-# Build Singularity image from Docker image
-echo -e "${YELLOW}Building Singularity image...${NC}"
+# Build Singularity image from definition file (no Docker required)
+echo -e "${YELLOW}Checking for Singularity image...${NC}"
 if [ ! -f "scenic-workflow.sif" ]; then
-    singularity build scenic-workflow.sif docker-daemon://scenic-snakemake:latest
-    echo -e "${GREEN}Singularity image built: scenic-workflow.sif${NC}"
+    if [ -f "Singularity.def" ]; then
+        echo -e "${YELLOW}Building Singularity image from definition file...${NC}"
+        singularity build scenic-workflow.sif Singularity.def
+        echo -e "${GREEN}Singularity image built: scenic-workflow.sif${NC}"
+    else
+        echo -e "${YELLOW}No Singularity.def found. Trying to pull from Docker Hub...${NC}"
+        # Try to pull from a public registry (requires internet)
+        if singularity build scenic-workflow.sif docker://condaforge/mambaforge:latest; then
+            echo -e "${GREEN}Base image pulled. You may need to install additional dependencies.${NC}"
+        else
+            echo -e "${RED}Failed to build image. Please ensure Singularity.def exists or internet connectivity.${NC}"
+            exit 1
+        fi
+    fi
 else
     echo -e "${GREEN}Using existing Singularity image: scenic-workflow.sif${NC}"
 fi
@@ -49,7 +61,14 @@ case $COMMAND in
     
     "build")
         echo -e "${YELLOW}Building Singularity image...${NC}"
-        singularity build --force scenic-workflow.sif docker-daemon://scenic-snakemake:latest
+        if [ -f "Singularity.def" ]; then
+            singularity build --force scenic-workflow.sif Singularity.def
+            echo -e "${GREEN}Image built from Singularity.def${NC}"
+        else
+            echo -e "${YELLOW}No Singularity.def found. Building from Docker Hub...${NC}"
+            singularity build --force scenic-workflow.sif docker://condaforge/mambaforge:latest
+            echo -e "${YELLOW}Note: You may need to install additional dependencies manually.${NC}"
+        fi
         ;;
     
     "test")
