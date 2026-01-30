@@ -10,71 +10,39 @@ import loompy as lp
 
 def main():
     # Get parameters from snakemake
-    input_files = snakemake.input.h5ad_files
+    input_file = snakemake.input.h5ad_file
     output_file = snakemake.output[0]
+    sample_id = snakemake.params.sample_id
     
-    # Load and concatenate multiple h5ad files
-    print(f"Loading {len(input_files)} h5ad files...")
-    adata_list = []
-    for i, input_file in enumerate(input_files):
-        print(f"Loading file {i+1}/{len(input_files)}: {input_file}")
-        adata = sc.read_h5ad(input_file)
-        adata_list.append(adata)
-    
-    # Concatenate all samples
-    print("Concatenating samples...")
-    adata = sc.concat(adata_list, axis=0, join="outer", fill_value=0)
-    print(f"Combined data shape: {adata.shape}")
+    # Load single h5ad file
+    print(f"Loading h5ad file for sample {sample_id}: {input_file}")
+    adata = sc.read_h5ad(input_file)
+    print(f"Sample {sample_id} data shape: {adata.shape}")
 
     # Use snakemake.params for loom_preparation parameters
     loom_params = snakemake.config['loom_preparation']
-
-    if loom_params['split']:
-        split_condition = loom_params['split_condition']
-        split_value = snakemake.params.split_value
-        celltype_column = loom_params.get('celltype_column', None)
-        assert split_condition in adata.obs.columns
-        print(f"Preparing expression matrix for split condition '{split_condition}' with value '{split_value}'")
-        assert split_value in adata.obs[split_condition].values
-        tmp_adata = adata[adata.obs[split_condition] == split_value].copy()
-        print(tmp_adata)
-        row_attrs = {
-            "Gene": np.array(tmp_adata.var_names),
-        }
-        col_attrs = {
-            "CellID": np.array(tmp_adata.obs_names),
-            "nGene": np.array(np.sum(tmp_adata.X.transpose() > 0, axis=0)).flatten(),
-            "nUMI": np.array(np.sum(tmp_adata.X.transpose(), axis=0)).flatten(),
-        }
-        if celltype_column:
-            col_attrs["CellAnno"] = np.array(tmp_adata.obs[celltype_column])
-        save_name = f"{output_file}"
-        lp.create(
-            save_name,
-            tmp_adata.X.transpose(),
-            row_attrs=row_attrs,
-            col_attrs=col_attrs,
-        )
-    else:
-        celltype_column = loom_params.get('celltype_column', None)
-        row_attrs = {
-            "Gene": np.array(adata.var_names),
-        }
-        col_attrs = {
-            "CellID": np.array(adata.obs_names),
-            "nGene": np.array(np.sum(adata.X.transpose() > 0, axis=0)).flatten(),
-            "nUMI": np.array(np.sum(adata.X.transpose(), axis=0)).flatten(),
-        }
-        if celltype_column:
-            col_attrs["CellAnno"] = np.array(adata.obs[celltype_column])
-        save_name = f"{output_file}"
-        lp.create(
-            save_name,
-            adata.X.transpose(),
-            row_attrs=row_attrs,
-            col_attrs=col_attrs,
-        )
-    print("Expression matrix preparation complete!")
+    celltype_column = loom_params.get('celltype_column', None)
+    
+    # Create loom file
+    row_attrs = {
+        "Gene": np.array(adata.var_names),
+    }
+    col_attrs = {
+        "CellID": np.array(adata.obs_names),
+        "nGene": np.array(np.sum(adata.X.transpose() > 0, axis=0)).flatten(),
+        "nUMI": np.array(np.sum(adata.X.transpose(), axis=0)).flatten(),
+    }
+    if celltype_column and celltype_column in adata.obs.columns:
+        col_attrs["CellAnno"] = np.array(adata.obs[celltype_column])
+    
+    print(f"Creating loom file: {output_file}")
+    lp.create(
+        output_file,
+        adata.X.transpose(),
+        row_attrs=row_attrs,
+        col_attrs=col_attrs,
+    )
+    print(f"Expression matrix preparation complete for sample {sample_id}!")
 
 if __name__ == "__main__":
     main()
