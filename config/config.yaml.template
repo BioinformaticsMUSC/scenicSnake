@@ -1,0 +1,45 @@
+# SCENIC Workflow Configuration
+# =============================
+
+# Sample information file (TSV format)
+# Should contain columns: sample_id, file_path, condition (optional)
+samples: "config/samples.tsv"
+
+# Data filtering parameters
+filtering:
+  min_genes_per_cell: 200       # Minimum number of genes expressed per cell
+  min_cells_per_gene: 3         # Minimum number of cells expressing a gene
+  max_genes_per_cell: 5000      # Maximum number of genes per cell (filter doublets)
+  max_mitochondrial_percent: 20  # Maximum mitochondrial gene percentage
+
+# Loom preparation parameters
+loom_preparation:
+  adata_file_path: "data/filtered_adata.h5ad"
+  output_file: "data/expression_matrix.loom"  # Output file for the loom format
+  celltype_column: ""  # Column name for cell type annotations
+  split: false            # Whether to split the loom file by condition
+  split_condition: ""    # Condition column for splitting (if applicable)
+  split_values: ["all"]  # Values to split by (if applicable) - use ["all"] for no splitting
+
+# SCENIC parameters
+scenic:
+  species: "homo_sapiens"        # Species: homo_sapiens, mus_musculus, drosophila_melanogaster
+  motif_collection: "v10nr_clust" # Motif collection version
+  regulatory_feature_dbs: ["data/rankings500k.feather","data/rankings10k.feather"]
+  annotations_fname: "data/annotations.tbl"
+  path_to_TF_list: "data/TF_list.txt"
+  n_jobs: 4                      # Number of parallel jobs for GENIE3
+  seed: 42                       # Random seed for reproducibility
+  min_genes_per_regulon: 20      # Minimum genes required per regulon
+  auc_threshold: 0.05            # AUC threshold for binary activity
+
+# Visualization parameters
+visualization:
+  top_regulons: 50               # Number of top regulons to show in heatmap
+  selected_regulons: []          # Specific regulons to highlight (empty = auto-select)
+  cell_type_column: "cell_type"  # Column name for cell type annotations
+
+# Resource allocation
+resources:
+  genie3_memory: "16GB"          # Memory for GENIE3 inference
+  genie3_time: "24:00:00"        # Time limit for GENIE3 (HH:MM:SS)

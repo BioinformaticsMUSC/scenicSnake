@@ -93,7 +93,7 @@ case $COMMAND in
             --bind /tmp:/tmp \
             --pwd /workflow \
             scenic-workflow.sif \
-            conda run -n scenic snakemake -n --cores 1 --use-singularity --singularity-prefix "$(pwd)/.snakemake/singularity"
+            conda run -n scenic snakemake -n --cores 1 --use-conda
         ;;
     
     "run")
@@ -107,7 +107,7 @@ case $COMMAND in
             --bind /tmp:/tmp \
             --pwd /workflow \
             scenic-workflow.sif \
-            conda run -n scenic snakemake --cores 8 --use-singularity --singularity-prefix "$(pwd)/.snakemake/singularity" --printshellcmds
+            conda run -n scenic snakemake --cores 8 --use-conda --printshellcmds
         ;;
     
     "shell")

@@ -1,3 +1,25 @@
+# macOS
 .DS_Store
+
+# Old files
 old/*
 scripts/old/*
+
+# Ignore local config files (keep templates in git)
+config/config.yaml
+config/samples.tsv
+
+# Ignore workflow outputs
+results/
+logs/
+.snakemake/
+
+# Ignore container files
+scenic-workflow.sif
+*.sif
+
+# Ignore temporary files
+*.tmp
+
+# Keep template files in git
+!config/*.template
