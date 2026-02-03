@@ -47,7 +47,7 @@ From: continuumio/miniconda3:latest
 
     # Create SCENIC conda environment with base dependencies
     conda create -y -n scenic -c conda-forge -c anaconda -c bioconda \
-        python=3.12 \
+        python=3.10 \
         snakemake-minimal>=7.0 \
         jupyter \
         pip
