@@ -33,6 +33,13 @@ From: continuumio/miniconda3:latest
         libcurl4-gnutls-dev \
         libxml2-dev \
         squashfs-tools \
+        libcairo2-dev \
+        libpango1.0-dev \
+        libgdk-pixbuf2.0-dev \
+        libffi-dev \
+        shared-mime-info \
+        cmake \
+        pkg-config \
         && rm -rf /var/lib/apt/lists/*
 
     # Create working directory
@@ -40,7 +47,7 @@ From: continuumio/miniconda3:latest
 
     # Create SCENIC conda environment with base dependencies
     conda create -y -n scenic -c conda-forge -c anaconda -c bioconda \
-        python=3.9 \
+        python=3.12 \
         snakemake-minimal>=7.0 \
         jupyter \
         pip
