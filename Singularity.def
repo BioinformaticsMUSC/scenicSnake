@@ -233,7 +233,7 @@ dependencies:
     - numpy==1.26.0
     - numpy-groupies==0.11.2
     - packaging==24.2
-    - pandas==2.2.3
+    - pandas==2.0.3
     - partd==1.4.2
     - patsy==1.0.1
     - pillow==11.1.0
@@ -294,7 +294,7 @@ EOF
         singularity exec scenic-workflow.sif snakemake --cores 8 --use-conda
         
     The conda environment 'scenic' contains:
-    - Python 3.9
+    - Python 3.12
     - Snakemake >=7.0
     - scanpy, pySCENIC, loompy
     - All scientific Python stack
