@@ -35,7 +35,7 @@ From: continuumio/miniconda3:latest
         squashfs-tools \
         libcairo2-dev \
         libpango1.0-dev \
-        libgdk-pixbuf2.0-dev \
+        libgdk-pixbuf-xlib-2.0-dev \
         libffi-dev \
         shared-mime-info \
         cmake \
