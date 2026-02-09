@@ -227,7 +227,8 @@ rule generate_report:
         "results/reports/{sample_id}_scenic_report.html"
     params:
         sample_id = "{sample_id}",
-        cell_type_column = config["visualization"]["cell_type_column"]
+        cell_type_column = config["visualization"]["cell_type_column"],
+        split_value = "all"
     container:
         CONTAINER_IMAGE
     script:

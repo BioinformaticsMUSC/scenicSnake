@@ -29,7 +29,14 @@ def main():
     # Load data
     auc_df = pd.read_csv(auc_file, index_col=0)
     
-    regulons = get_regs(regulon_csv_file=regulons_file)
+    # Load regulons with error handling
+    try:
+        regulons = get_regs(regulon_csv_file=regulons_file)
+        print(f"Loaded {len(regulons)} regulons from {regulons_file}")
+    except Exception as e:
+        print(f"Warning: Could not load regulons from {regulons_file}: {e}")
+        print("Creating empty regulons dict for report generation")
+        regulons = {}
     
     rss_df = pd.read_csv(rss_file, index_col=0)
 
@@ -41,7 +48,15 @@ def main():
     common_cells = list(set(auc_df.index) & set(adata.obs_names))
     auc_df = auc_df.loc[common_cells, :]
     adata = adata[common_cells]
-    auc_df_ct = pd.concat([auc_df, adata.obs[cell_type_column]], axis=1)
+    
+    # Handle cell type column safely
+    if cell_type_column and cell_type_column in adata.obs.columns:
+        auc_df_ct = pd.concat([auc_df, adata.obs[cell_type_column]], axis=1)
+    else:
+        print(f"Warning: Cell type column '{cell_type_column}' not found. Using dummy cell types.")
+        dummy_ct = pd.Series(['Unknown'] * len(common_cells), index=common_cells, name=cell_type_column or 'cell_type')
+        auc_df_ct = pd.concat([auc_df, dummy_ct], axis=1)
+        cell_type_column = dummy_ct.name
     
     # Generate HTML report
     html_content = generate_html_report(auc_df, auc_df_ct, regulons, rss_df, plot_files, cell_type_column)
@@ -54,21 +69,76 @@ def main():
 
 def get_regs(regulon_csv_file):
     """convert regulon csv file to regulon dict/json format"""
-    df = pd.read_csv(regulon_csv_file,
-    index_col=0, 
-	skiprows=2, 
-	names=['MotifID', 'AUC', 'NES','MotifSimilarityQvalue','OrthologousIdentity','Annotation', 'Context', 'TargetGenes', 'RankAtMax'], 
-	header=0)
-    reg_json_data = {
-        f"{row.name}(+)": [gene for gene, _ in parse_TargetGenes(row['TargetGenes'])]
-        for _, row in df.iterrows()
-    }
-    return reg_json_data
+    try:
+        # Try to read the CSV file and detect its structure
+        # First, peek at the file to understand its format
+        with open(regulon_csv_file, 'r') as f:
+            lines = f.readlines()[:10]  # Read first 10 lines to inspect
+        
+        # Check if this looks like a pyscenic ctx output
+        if len(lines) > 1 and 'TF' in lines[0]:
+            # Standard pyscenic ctx output format
+            df = pd.read_csv(regulon_csv_file, sep='\t')
+            
+            # Extract regulons from the standard format
+            reg_json_data = {}
+            for _, row in df.iterrows():
+                regulon_name = f"{row['TF']}(+)"
+                if 'TargetGenes' in row:
+                    target_genes = parse_TargetGenes(str(row['TargetGenes']))
+                    reg_json_data[regulon_name] = [gene for gene, _ in target_genes]
+                else:
+                    # Fallback: use other columns that might contain target info
+                    reg_json_data[regulon_name] = []
+            
+            return reg_json_data
+        else:
+            # Fallback: try the original parsing method
+            df = pd.read_csv(regulon_csv_file,
+                index_col=0, 
+                skiprows=2, 
+                names=['MotifID', 'AUC', 'NES','MotifSimilarityQvalue','OrthologousIdentity','Annotation', 'Context', 'TargetGenes', 'RankAtMax'], 
+                header=0)
+            reg_json_data = {
+                f"{row.name}(+)": [gene for gene, _ in parse_TargetGenes(row['TargetGenes'])]
+                for _, row in df.iterrows()
+            }
+            return reg_json_data
+            
+    except Exception as e:
+        print(f"Error parsing regulons file: {e}")
+        print(f"File format not recognized. Creating empty regulons dict.")
+        return {}
 
 def parse_TargetGenes(x):
-	reg_patt = r"\('(\w*)',\s(?:np.float64\()?(\d*.\d*)(?:\))?\)"
-	genes = re.findall(reg_patt, x)
-	return genes
+    """Parse target genes from different possible formats"""
+    if pd.isna(x) or x == '':
+        return []
+    
+    x = str(x)
+    
+    # Try multiple regex patterns for different formats
+    patterns = [
+        r"\('(\w*)',\s(?:np\.float64\()?([\d*\.\d*]+)(?:\))?\)",  # Original pattern
+        r"\b([A-Za-z0-9_-]+)\b",  # Simple word pattern for gene names
+        r"([A-Z][A-Z0-9_]*)",     # Gene name pattern (uppercase)
+    ]
+    
+    for pattern in patterns:
+        genes = re.findall(pattern, x)
+        if genes:
+            if isinstance(genes[0], tuple):
+                return genes  # Return tuples (gene, score)
+            else:
+                return [(gene, 1.0) for gene in genes]  # Return with dummy scores
+    
+    # If no pattern matches, try splitting by common separators
+    for sep in [';', ',', '\t', ' ']:
+        if sep in x:
+            genes = [g.strip() for g in x.split(sep) if g.strip()]
+            return [(gene, 1.0) for gene in genes]
+    
+    return []
 
 def generate_html_report(auc_df, auc_df_ct, regulons, rss_df, plot_files, cell_type_column):
     """Generate HTML report content"""
