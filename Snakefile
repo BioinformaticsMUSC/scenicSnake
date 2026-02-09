@@ -131,7 +131,8 @@ rule create_regulons:
             --output {output.regulons} \
             --auc_threshold {params.auc_threshold} \
             --cell_id_attribute CellAnno \
-            --min_genes {params.min_genes}
+            --min_genes {params.min_genes} \
+            --num_workers {config["scenic"]["n_jobs"]}
         """
 
 rule calculate_auc:
