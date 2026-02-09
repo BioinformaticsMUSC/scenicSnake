@@ -29,7 +29,9 @@ def main():
     print(f"Loading metadata from {metadata_file}")
     adata = sc.read_h5ad(metadata_file)
     split_column = snakemake.config['loom_preparation']['split_condition']
-    adata = adata[adata.obs[split_column] == snakemake.params.split_value].copy()
+    # Only filter by split condition if it's specified and not empty
+    if split_column and split_column.strip() and snakemake.params.split_value != "all":
+        adata = adata[adata.obs[split_column] == snakemake.params.split_value].copy()
     
     # Compute UMAP if not present
     if 'X_umap' not in adata.obsm:

@@ -186,7 +186,8 @@ rule plot_umap_regulon_activity:
     params:
         selected_regulons = config["visualization"]["selected_regulons"],
         sample_id = "{sample_id}",
-        cell_type_column = config["visualization"]["cell_type_column"]
+        cell_type_column = config["visualization"]["cell_type_column"],
+        split_value = "all"
     container:
         CONTAINER_IMAGE
     script:
@@ -202,7 +203,8 @@ rule calculate_rss:
         rss_plot = "results/plots/{sample_id}_rss_plot.pdf"
     params:
         sample_id = "{sample_id}",
-        cell_type_column = config["visualization"]["cell_type_column"]
+        cell_type_column = config["visualization"]["cell_type_column"],
+        split_value = "all"
     container:
         CONTAINER_IMAGE
     script:
