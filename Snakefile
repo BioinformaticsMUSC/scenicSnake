@@ -118,7 +118,7 @@ rule create_regulons:
         database_fname = get_regulatory_feature_dbs(),
         annotations_fname = config["scenic"]["annotations_fname"],
         min_genes = config["scenic"]["min_genes_per_regulon"],
-        auc_threshold = config["scenic"]["auc_threshold"]
+        auc_threshold = config["scenic"]["auc_threshold"],
         num_workers = config["scenic"]["n_jobs"]
     container:
         CONTAINER_IMAGE
