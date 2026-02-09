@@ -119,6 +119,7 @@ rule create_regulons:
         annotations_fname = config["scenic"]["annotations_fname"],
         min_genes = config["scenic"]["min_genes_per_regulon"],
         auc_threshold = config["scenic"]["auc_threshold"]
+        num_workers = config["scenic"]["n_jobs"]
     container:
         CONTAINER_IMAGE
     shell:
@@ -132,7 +133,7 @@ rule create_regulons:
             --auc_threshold {params.auc_threshold} \
             --cell_id_attribute CellAnno \
             --min_genes {params.min_genes} \
-            --num_workers {config["scenic"]["n_jobs"]}
+            --num_workers {params.num_workers}
         """
 
 rule calculate_auc:
@@ -143,7 +144,8 @@ rule calculate_auc:
     output:
         auc_matrix = "results/scenic/{sample_id}_auc_matrix.csv",
     params:
-        auc_threshold = config["scenic"]["auc_threshold"]
+        auc_threshold = config["scenic"]["auc_threshold"],
+        num_workers = config["scenic"]["n_jobs"]
     container:
         CONTAINER_IMAGE
     shell:
@@ -152,7 +154,8 @@ rule calculate_auc:
             {input.expression} \
             {input.regulons} \
             -o {output.auc_matrix} \
-            --auc_threshold {params.auc_threshold}
+            --auc_threshold {params.auc_threshold} \
+            --num_workers {params.num_workers}
         """
 
 # Visualization rules
