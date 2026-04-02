@@ -119,6 +119,7 @@ From: continuumio/miniconda3:latest
             partd==1.4.2 \
             patsy==1.0.1 \
             pillow==11.1.0 \
+            plotly==6.6.0 \
             propcache==0.2.1 \
             psutil==7.0.0 \
             pyarrow==19.0.1 \
@@ -237,6 +238,7 @@ dependencies:
     - partd==1.4.2
     - patsy==1.0.1
     - pillow==11.1.0
+    - plotly==6.6.0
     - propcache==0.2.1
     - psutil==7.0.0
     - pyarrow==19.0.1
